@@ -1,0 +1,201 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum EstadoAnimal {
+  ACTIVO
+  VENDIDO
+  MUERTO
+  TRANSFERIDO
+}
+
+enum EstadoLote {
+  ACTIVO
+  ARCHIVADO
+}
+
+enum CategoriaGasto {
+  ALIMENTACION
+  MEDICAMENTOS
+  TRANSPORTE
+  MANO_DE_OBRA
+  ARRENDAMIENTO
+  OTROS
+}
+
+enum FuentePrecioMercado {
+  MANUAL
+  AUTOMATICO
+}
+
+enum TipoAlerta {
+  PESAJE_PENDIENTE
+  CRECIMIENTO_LENTO
+  BUEN_MOMENTO_VENTA
+  GASTO_ELEVADO
+  VACUNA_PROXIMA
+  PRECIO_SIN_ACTUALIZAR
+}
+
+// ─── Modelos ──────────────────────────────────────────────────────────────────
+
+// userId referencia el UUID de Supabase Auth (no duplicamos la tabla users)
+
+model Finca {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  nombre       String
+  municipio    String
+  departamento String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  lotes        Lote[]
+
+  @@map("fincas")
+}
+
+model Proveedor {
+  id                    String  @id @default(uuid())
+  userId                String  @map("user_id")
+  nombre                String
+  telefono              String?
+  municipio             String?
+  historialCalificacion Float?  @map("historial_calificacion")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  lotes                 Lote[]
+
+  @@map("proveedores")
+}
+
+model Lote {
+  id          String     @id @default(uuid())
+  userId      String     @map("user_id")
+  nombre      String
+  fechaCompra DateTime   @map("fecha_compra")
+  fincaId     String     @map("finca_id")
+  proveedorId String?    @map("proveedor_id")
+  estado      EstadoLote @default(ACTIVO)
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  finca       Finca      @relation(fields: [fincaId], references: [id])
+  proveedor   Proveedor? @relation(fields: [proveedorId], references: [id])
+  animales    Animal[]
+  pesajes     Pesaje[]
+  gastos      Gasto[]
+  alertas     Alerta[]
+
+  @@map("lotes")
+}
+
+model Animal {
+  id              String       @id @default(uuid())
+  loteId          String       @map("lote_id")
+  fotoUrl         String?      @map("foto_url")
+  pesoInicialKg   Float        @map("peso_inicial_kg")
+  precioCompraCop Int          @map("precio_compra_cop")
+  raza            String?
+  edadMeses       Int?         @map("edad_meses")
+  arete           String?
+  estado          EstadoAnimal @default(ACTIVO)
+  precioVentaCop  Int?         @map("precio_venta_cop")
+  pesoVentaKg     Float?       @map("peso_venta_kg")
+  fechaVenta      DateTime?    @map("fecha_venta")
+  deletedAt       DateTime?    @map("deleted_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  lote            Lote         @relation(fields: [loteId], references: [id])
+  pesajes         Pesaje[]
+  gastos          Gasto[]
+  alertas         Alerta[]
+
+  @@map("animales")
+}
+
+model Pesaje {
+  id        String   @id @default(uuid())
+  animalId  String   @map("animal_id")
+  loteId    String   @map("lote_id")
+  fecha     DateTime
+  pesoKg    Float    @map("peso_kg")
+  fotoUrl   String?  @map("foto_url")
+  nota      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  animal    Animal   @relation(fields: [animalId], references: [id])
+  lote      Lote     @relation(fields: [loteId], references: [id])
+
+  @@map("pesajes")
+}
+
+model Gasto {
+  id          String         @id @default(uuid())
+  loteId      String         @map("lote_id")
+  animalId    String?        @map("animal_id")
+  categoria   CategoriaGasto
+  montoCop    Int            @map("monto_cop")
+  fecha       DateTime
+  descripcion String?
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  lote        Lote           @relation(fields: [loteId], references: [id])
+  animal      Animal?        @relation(fields: [animalId], references: [id])
+
+  @@map("gastos")
+}
+
+model PrecioMercado {
+  id            String              @id @default(uuid())
+  userId        String              @map("user_id")
+  precioKiloCop Int                 @map("precio_kilo_cop")
+  fecha         DateTime
+  fuente        FuentePrecioMercado @default(MANUAL)
+  departamento  String?
+  createdAt     DateTime            @default(now()) @map("created_at")
+
+  @@map("precio_mercado")
+}
+
+model Perfil {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  username  String   @unique
+  email     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("perfiles")
+}
+
+model PushToken {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  token      String   @unique
+  plataforma String   @default("unknown")
+  activo     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("push_tokens")
+}
+
+model Alerta {
+  id        String     @id @default(uuid())
+  userId    String     @map("user_id")
+  loteId    String?    @map("lote_id")
+  animalId  String?    @map("animal_id")
+  tipo      TipoAlerta
+  mensaje   String
+  leida     Boolean    @default(false)
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  lote      Lote?      @relation(fields: [loteId], references: [id])
+  animal    Animal?    @relation(fields: [animalId], references: [id])
+
+  @@map("alertas")
+}
