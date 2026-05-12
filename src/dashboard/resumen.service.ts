@@ -181,7 +181,7 @@ export class ResumenService {
       return acc;
     }, {});
     const gastosMesPorCategoria = Object.entries(porCategoriaMap)
-      .map(([categoria, total]) => ({ categoria, total }))
+      .map(([categoria, total]) => ({ categoria, total: total as number }))
       .sort((a, b) => b.total - a.total);
 
     return {
