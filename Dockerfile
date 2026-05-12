@@ -4,21 +4,21 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY tsconfig*.json ./
+COPY nest-cli.json ./
+COPY src ./src
 
 # Instalar TODAS las deps (incluyendo devDeps) para poder compilar
 RUN npm ci
 
-# Generar Prisma client antes de compilar TypeScript
+# Generar Prisma client
 RUN npx prisma generate
 
-# Copiar fuente
-COPY . .
+# Compilar con tsc directamente (más predecible que nest build + webpack)
+RUN npx tsc -p tsconfig.build.json
 
-# Compilar — falla el build si dist/main.js no existe
-RUN npx nest build && \
-    echo "=== dist/ generado ===" && \
-    ls -la dist/ && \
-    test -f dist/main.js || (echo "ERROR: dist/main.js no existe" && exit 1)
+# Mostrar qué se generó (diagnóstico)
+RUN echo "=== Contenido de dist/ ===" && ls -la dist/ && echo "=== main.js ===" && test -f dist/main.js && echo "OK" || (echo "ERROR: dist/main.js no existe" && exit 1)
 
 # ─── Imagen de producción ───────────────────────────────────────────────────
 FROM node:20-alpine
@@ -33,9 +33,6 @@ RUN npm ci --omit=dev && npx prisma generate
 
 # Copiar el output compilado desde la etapa de build
 COPY --from=builder /app/dist ./dist
-
-# Verificar que main.js llegó a la imagen final
-RUN test -f dist/main.js && echo "dist/main.js OK" || (echo "ERROR: dist/main.js no llegó" && exit 1)
 
 EXPOSE 3000
 
