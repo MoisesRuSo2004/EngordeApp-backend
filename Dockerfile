@@ -8,12 +8,17 @@ COPY prisma ./prisma/
 # Instalar TODAS las deps (incluyendo devDeps) para poder compilar
 RUN npm ci
 
-# Generar Prisma client
+# Generar Prisma client antes de compilar TypeScript
 RUN npx prisma generate
 
-# Copiar fuente y compilar
+# Copiar fuente
 COPY . .
-RUN npx nest build
+
+# Compilar — falla el build si dist/main.js no existe
+RUN npx nest build && \
+    echo "=== dist/ generado ===" && \
+    ls -la dist/ && \
+    test -f dist/main.js || (echo "ERROR: dist/main.js no existe" && exit 1)
 
 # ─── Imagen de producción ───────────────────────────────────────────────────
 FROM node:20-alpine
@@ -28,6 +33,9 @@ RUN npm ci --omit=dev && npx prisma generate
 
 # Copiar el output compilado desde la etapa de build
 COPY --from=builder /app/dist ./dist
+
+# Verificar que main.js llegó a la imagen final
+RUN test -f dist/main.js && echo "dist/main.js OK" || (echo "ERROR: dist/main.js no llegó" && exit 1)
 
 EXPOSE 3000
 
