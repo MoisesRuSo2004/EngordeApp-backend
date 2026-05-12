@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { FincasModule } from './fincas/fincas.module';
@@ -32,6 +33,7 @@ import { PerfilesModule } from './perfiles/perfiles.module';
     ProveedoresModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, JwtAuthGuard],
+  exports: [JwtAuthGuard],
 })
 export class AppModule {}
